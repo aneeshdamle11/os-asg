@@ -1,0 +1,10 @@
+Changes to be made at:
+1. Makefile (UPROGS)
+2. syscall.c (prototype + array-entry)
+3. syscall.h (MACRO)
+4. sysfile.c
+5. tryhello.c (hello and exit)
+6. user.h
+7. usys.S
+
+Userland code + kernel code

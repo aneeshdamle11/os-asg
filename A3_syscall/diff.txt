@@ -1,0 +1,96 @@
+OS Assignment - Adding a System Call to Linux kernel
+Name: Aneesh Damle
+MIS: 112003032
+
+=== TABLE FILE ===
+*** linux-5.16.1/arch/x86/entry/syscalls/syscall_64.tbl	2022-01-16 13:41:15.000000000 +0530
+--- new-linux-5.16.1/arch/x86/entry/syscalls/syscall_64.tbl	2023-02-07 15:04:43.673056958 +0530
+***************
+*** 371,376 ****
+--- 371,378 ----
+  447	common	memfd_secret		sys_memfd_secret
+  448	common	process_mrelease	sys_process_mrelease
+  449	common	futex_waitv		sys_futex_waitv
++ 450	common	anja			sys_anja
++ 451	common	ancestry		sys_ancestry
+  
+  #
+  # Due to a historical design error, certain syscalls are numbered differently
+
+=== HEADER FILES ===
+*** linux-5.16.1/include/linux/syscalls.h	2022-01-16 13:41:15.000000000 +0530
+--- new-linux-5.16.1/include/linux/syscalls.h	2023-02-07 16:24:17.284009106 +0530
+***************
+*** 1386,1389 ****
+--- 1386,1391 ----
+  		int __user *optlen);
+  int __sys_setsockopt(int fd, int level, int optname, char __user *optval,
+  		int optlen);
++ asmlinkage long sys_anja(void);
++ asmlinkage long sys_ancestry(int);
+  #endif
+
+=== SOURCE CODE FILE-1 ===
+cat new-linux-5.16.1/ancestry/ancestry.c
+#include <linux/kernel.h>
+#include <linux/syscalls.h>
+
+SYSCALL_DEFINE1(ancestry,int,pid)
+
+{
+	struct task_struct *p = find_task_by_vpid(pid);
+	while (p) {
+		printk("Process: %d\t%s\n", p->pid, p->comm);
+		if (p->real_parent) {
+			p = find_task_by_vpid(p->real_parent->pid);
+		} else {
+			break;
+		}
+	}
+	return 0;
+}
+=== SOURCE CODE FILE-2 ===
+cat new-linux-5.16.1/ancestry/Makefile
+obj-y := ancestry.o
+=== SOURCE CODE FILE-3 ===
+*** linux-5.16.1/Makefile	2022-01-16 13:41:15.000000000 +0530
+--- new-linux-5.16.1/Makefile	2023-02-07 15:01:03.612810982 +0530
+***************
+*** 1092,1098 ****
+  export MODULES_NSDEPS := $(extmod_prefix)modules.nsdeps
+  
+  ifeq ($(KBUILD_EXTMOD),)
+! core-y			+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/
+  core-$(CONFIG_BLOCK)	+= block/
+  
+  vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, \
+--- 1092,1098 ----
+  export MODULES_NSDEPS := $(extmod_prefix)modules.nsdeps
+  
+  ifeq ($(KBUILD_EXTMOD),)
+! core-y			+= kernel/ certs/ mm/ fs/ ipc/ security/ crypto/ anja/ ancestry/
+  core-$(CONFIG_BLOCK)	+= block/
+  
+  vmlinux-dirs	:= $(patsubst %/,%,$(filter %/, \
+
+=== USERLAND APPLICATION PROGRAM ===
+#include <linux/kernel.h>
+#include <sys/syscall.h>
+#include <stdio.h>
+#include <unistd.h>
+#include <string.h>
+#include <errno.h>
+#include <stdlib.h>
+
+int main(int args, char *argv[]) {
+	long activity;
+	activity = syscall(451, atoi(argv[1]));
+
+	if (activity < 0) {
+		printf("Syscall failed:(\n");
+	} else {
+		printf("Syscall worked:)\n");
+	}
+
+	return 0;
+}

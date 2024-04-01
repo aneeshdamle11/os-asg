@@ -1,0 +1,38 @@
+Implementing Job Control in the shell
+
+Tasks:
+Ctrl^C: Open a shell, open firefox;
+        Now, the shell prompt shouldn't appear; instead only firefox should open
+        On typing Ctrl^C, firefox should close, and the shell prompt should reappear
+
+Ctrl^Z: Open a shell, open firefox
+        Now, shell prompt doesn't appear, only firefox is open.
+        On typing Ctrl^Z, firefox shouldn't close, but go in the background
+        i.e. on clicking, firefox doesn't respond
+        Prompt should reappear
+bg    : Immediately, on typing "bg", firefox should be seen as stopped and
+        it's number should be printed
+fg    : If a process and its ID are seen in bg, using fg %ID should bring that
+        process in the foreground; and again prompt should not print,
+        but instead the application should be working (firefox should respond
+        to mouse clicks)
+
+Step-0: Data structure for the shell
+        process: any single command entered by the user eg. ls or date or firefox
+        pid --> ID of a process
+        job: a list of processes entered as a pipeline eg. firefox | kate | gedit
+        pgid --> ID of "group of processes"/"job"
+
+Step-1: Initializing a shell
+        When we press ./a.out to run our own C shell, the terminal bash shell
+        internally fork-execs, and let's us run our shell in its child process.
+        It waits till our program is complete.
+        Hence, initially we should ensure that our own shell is in the
+        foreground. Also our shell should not "exit" on Ctrl^C, but instead
+        work as if a "none/dummy" is executed. Similarly for Ctrl^Z, etc...
+        Hence, we need to disable the signal-handling in the "parent process"
+
+Step-2: 
+        
+
+

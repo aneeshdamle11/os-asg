@@ -1,0 +1,120 @@
+Process is a program in execution.
+A process is represented with a data structure called PCB (Process Control
+Bock) in OS data structure.
+Consider the PCB to be a struct.
+One PCB per process.
+Obviously OS will maintain a "list" of PCBs. It could be an array or a list,
+or smt else as well.
+
+When a process does an open() (system call to request the OS to open a file)
+Who opens the file? - The OS
+opening is not like opening an envelop - basically some data structure
+manipulations by the OS to allow access of that file to your process.
+
+In PCB of each process, the OS maintains a list of open files by that process
+This is done using mostly, an array of what is called as file descriptor(fd).
+Recollect;
+int open(char *name, int, int);
+open returns an int, this is obvious returned bu the OS
+this return value is later used by read(), and write(), etc.
+
+e.g.
+int fd = open("/etc/passwd", O_RDONLY);
+char buf[128];
+read(buf, buf, 5);
+write(buf, buf, 5);
+lseek(fd, SEEK_SET, 10);
+
+The file descriptor array inside the PCB is like this:
+
+struct pcb {
+    other things;
+    FILE *fds[128];// index 0,1 and 2 are already pointing to some struct FILE
+    int n;
+    othr things;
+}
+struct FILE {
+    some variables representing the file on DISK
+    offset in the file;
+}
+---
+By design, the file descriptors 0,1,2 are always open for any process.
+This is ensured during fork-exec
+0 is called stdin, 1 is called stdout, 2 is called stderr file descriptor
+what are STDOUT, STDIN, STDERR
+
+struct FILE for fd 0 is normally called STDIN. This represents, the keyboard
+(as a file :)
+fd 1 is your screen
+fd 2 is your screen
+
+--
+fd 0, is already open, is mapped to kbd
+similarly about fd1, fd2
+Also, open() returns the smallest possible file descriptor
+--
+After a fork() and exec the FDs are inherited
+--
+Shell input redirection [40: 30]
+
+while (1) {
+    scanf("%d", cmd);// cmd contains "command < file"
+    do some string processing, and f = filename;
+    p = fork();
+    if (p == 0) {
+        close(0);
+        open(f);
+        execl(cmd,...);
+    } else {
+        wait();
+    }
+}
+
+
+--
+System call called pipe()
+It creates an internal operating system "queue" like data structure
+pipe() returns an array of 2 file descriptors, i.e. 0th and 1st
+0th is used as an argument to read() to read from the queue/pipe
+and 1st is used as an argument to write() to write to the pipe
+
+--
+pipe inside a shell
+usage
+$ ls | grep
+
+obviously, the shell will have to do 2 forks and 2 execs
+and then connect the stdout of first as stdin of second
+*** the two processes will run concurrently ***
+
+while (1) {
+    scanf("%d", cmd);// cmd contains "command < file"
+// figured out that the cmd was "ls | grep", i.e. two commands connected by a pipe
+    p = fork();
+    if (p == 0) {
+        close(1);
+        dup(pfd[1]);
+        close(pfd[0]); // convention (or) rule
+        execl(cmd1,...); // ls here
+    } else {
+        q = fork()
+        if (q == 0) {
+            close(0);
+            dup(pfd[0]);
+            close(1); // convention (or) rule
+            execl(cmd2, ...); // grep here
+        }
+        wait();
+    }
+}
+
+
+Remember,
+if you have
+ls | grep | head
+then, 2 sets of pipes are needed
+
+
+/* JOB CONTROL */
+Resource: https://www.gnu.org/software/libc/manual/html_node/Implementing-a-Shell.html
+

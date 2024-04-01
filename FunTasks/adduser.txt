@@ -1,0 +1,86 @@
+Title - Add new user manually
+
+STEPS:
+1. Add new user in /etc/passwd
+2. Add user in /etc/group
+3. Choose a password and find its hash using mkpasswd
+4. Add new user and password in /etc/shadow
+5. Create home directory for new user
+6. Copy contents of /etc/skel to new user's home directory
+7. Change the owner (chown) and groupc(chgrp) of new user's homw directory
+8. Reboot
+
+
+DETAILS:
+1) /etc/passwd:
+username:password:UID:GID:UserIDinfo:HomeDir:shell
+ex. saurabh:x:1000:1000:saurabh,,,:/home/saurabh:/bin/bash
+
+Password: An x character indicates that encrypted password is stored in /etc/shadow file.
+
+UID: User ID
+0 - root
+1 to 99 - reserved/predefined accounts
+100 to 999 - reserved by system for administrative and system accounts/groups.
+
+GID: Group ID
+The primary group ID (stored in /etc/group file)
+
+User ID Info: Extra info about user ex. name, phone no
+
+HomeDir: Home directory
+/home/Username (most common)
+/ if given directory does not exist
+
+shell: absolute path of user's default shell ex. /bin/bash
+
+
+2) /etc/group:
+group_name:password:groupID(GID):group_list
+ex. saurabh:x:1000:
+
+
+3) mkpasswd -m <method> <password> <salt>
+method: SHA-512 (Ubuntu 16)
+		yescrypt (Ubuntu 22)
+
+to see all available methods: mkpasswd -m -help 
+
+
+4) /etc/shadow:
+username:password:lastchanged:minimum:maximum:warn:inactive:expire
+ex. test:$y$j9T$EXgIXgjD.kRN6ObAhu3Qx.$JQAdfGnHjRVds7gh0UVCz/BVQDqUGGfkvXOKqeAzf28:19366:0:99999:7:::
+
+password: $id$salt$password(hashed)
+id - hashing algorithm ex. $6$ - SHA-512 (Ubuntu - 16)
+						   $y$ - yescrypt (Ubuntu - 22)
+
+lastchanged: The date of the last password change, expressed as the number of days since Jan 1, 1970 (Unix time).
+
+for details - https://www.cyberciti.biz/faq/understanding-etcshadow-file/
+
+
+5) create home directory: /home/Username
+
+
+6) contents of /etc/skel: 
+
+i) .bash_logout:
+The . bash_logout file is the individual login shell cleanup file. It is executed automatically on logout.
+
+ii) .bashrc: 
+The .bashrc file is a script file that’s executed when a user logs in. The file itself contains a series of configurations for the terminal session. This includes setting up or enabling: coloring, completion, shell history, command aliases, and more.
+
+iii) .profile:
+The .profile file contains your individual profile that overrides the variables set in the /etc/profile file. The .profile file is often used to set exported environment variables and terminal modes.
+
+iv) examples.desktop (only on Ubuntu 16):
+No use, can be deleted.
+
+copy these files to new user's home directory
+
+7) chown <new-owner>  <filename>
+   chgrp <group> <filename>
+
+8) Reboot ;)
+
