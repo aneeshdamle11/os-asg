@@ -1,19 +1,17 @@
 # os-asg
 Assignments, tasks and a big learning curve with the operating systems courseware: Semester 6
-
-## OS concepts and xv6 
-Book: Dragonbook, mit-pdos xv6 cookbook
-
+## OS concepts
 Concepts: 
-- Booting
+- Basics of OS
 - Processes
-- Multithreading
-- Multitasking
-- File systems
-
+- Threads and Concurrency
 - Scheduling
-- Locking and synchronization
+- Synchronization and Deadlocks
+- Memory management - virtual memory, paging and storage
+- File System Internals
+- Virtual Machines
 
-xv6:
-- Kernel concepts
-- Code design
+### Books:
+1. Operating System Concepts - Silberchatz, Galvin, Gagne (Dragonbook)
+2. xv6: A simple, Unix-like teaching operating system (https://pdos.csail.mit.edu/6.828/2018/xv6/book-rev11.pdf)
+

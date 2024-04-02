@@ -1,0 +1,82 @@
+## OS Ext2 Assignment - File System Internals
+
+### Problem
+Given the complete path name, print:
+- inode of the file/directory specified, from an ext2 file-system and
+- contents of the file or directory.
+
+### Notes and Explanation
+In order to print inode data from given inode number, we need to know:
+1. Block group in which that inode is
+> We know total inodes in one group (superblock info)
+> block_grp = (inode_no - 1) / total_inodes_each_group
+2. Location of inode table in that block group
+> Group descriptor will give the block no. of the inode table
+3. Offset in the inode table giving locn of that inode
+> offset = (inode_no - 1) % total_inodes_each_group
+
+> NOTE: Everything relies on calculating the offset!
+
+- readsuper.c
+```
+(read super block structure in /usr/include/ext2fs/ext2_fs.h)
+(group: s_blocks_count / s_block_per_group (ek akda pudhcha))
+= ./readsuper
+= Check: debugfs /dev/sdb1: stats
+```
+
+- readinode.c
+```
+(before running, make sure there are some files in /dev/sdb1)
+(mount /dev/sdb1 /tmp/a)
+(cp /etc/passwd, stdio.h)
+ls -li /tmp/a (will give inode numbers)
+[ NOTE: root is always inode number 2]
+Check by debugfs: stat filepath
+TODO: Write code for indirect blocks
+TODO: Check why are we printing extra inode blocks?
+
+first 1024: boot block
+1024: super block
+1024 + one FS block: group descriptor
+```
+
+- super block gives: block size, #blocks, #inodes, #blocks-per-group, #inodes-per-group.
+- group descriptor: block no of inode table, inode bitmap, data bitmap
+
+#### Getting inode, given inode number:
+1. Which group is it in?
+> (ino - 1) #inodes-per-group (ceiling)
+2. Where in the group: inode table
+> group-descr gives inode table block number
+3. Where in the inode table?
+> (ino - 1) % #inodes-per-group
+
+Final offset:
+> inode_table_block_no * block_size + offset * sizeof inode (its in super block)
+
+---
+
+Given a pathname, print file -> code snippet:
+```
+/* gives you inode : code of Part-A */
+ext2_inode getinode(int ino, int fd) {
+    ...
+}
+
+main() {
+    char *pathname; Eg. /a/b
+
+    parent-ino = 2
+    loop {
+        p = readino (parent-ino)
+        nextname = strtok(pathname, "/");
+        read data blocks of p, and search next name in it
+        if found
+            parent-ino = inode-of-nextname
+        else
+            return saying does not exist
+    } till no nextname
+}
+```
+

@@ -1,0 +1,159 @@
+diff --git a/Makefile b/Makefile
+index 09d790c..087956d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -76,7 +76,7 @@ AS = $(TOOLPREFIX)gas
+ LD = $(TOOLPREFIX)ld
+ OBJCOPY = $(TOOLPREFIX)objcopy
+ OBJDUMP = $(TOOLPREFIX)objdump
+-CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -Werror -fno-omit-frame-pointer
++CFLAGS = -fno-pic -static -fno-builtin -fno-strict-aliasing -O2 -Wall -MD -ggdb -m32 -fno-omit-frame-pointer
+ CFLAGS += $(shell $(CC) -fno-stack-protector -E -x c /dev/null >/dev/null 2>&1 && echo -fno-stack-protector)
+ ASFLAGS = -m32 -gdwarf-2 -Wa,-divide
+ # FreeBSD ld wants ``elf_i386_fbsd''
+diff --git a/file.c b/file.c
+index 24b32c2..732b304 100644
+--- a/file.c
++++ b/file.c
+@@ -22,6 +22,43 @@ fileinit(void)
+   initlock(&ftable.lock, "ftable");
+ }
+ 
++void create_filecache(void) {
++    cprintf("Initialising slab allocator\n");
++    int i;
++    /* Hoping all struct filecache's might fit in a page */
++    cachehead = (struct filecache *)kalloc();
++    char *bitmap = cachehead->bitmap;
++    for (i = 0; i < CACHESIZE; ++i)
++        bitmap[i] = 0;
++    cachehead->slabaddress = kalloc();
++    cachehead->next = 0;
++}
++
++struct file *get_slabfile(void) {
++    /* search for an empty slot in a partially filled cache */
++    int i;
++    for (i = 0; i < CACHESIZE; ++i)
++        if (cachehead->bitmap[i] == 0) {
++          cachehead->bitmap[i] = 1;
++          return (struct file*)(cachehead->slabaddress + sizeof(struct file) * i);
++        }
++    /* if no slot found, create a new cache-slab */
++    if (i == CACHESIZE) {
++        struct filecache *p;
++        for (p = cachehead; p->next; p = p->next);
++        struct filecache *nn = p->next;
++        p->next = nn;
++        for (i = 0; i < CACHESIZE; ++i)
++            nn->bitmap[i] = 0;
++        nn->slabaddress = (char *)(nn + sizeof(struct filecache));
++        nn->next = cachehead->next;
++        cachehead = nn;
++        nn->bitmap[0] = 1;
++        return (struct file *)(cachehead->slabaddress);
++    }
++    return 0;
++}
++
+ // Allocate a file structure.
+ struct file*
+ filealloc(void)
+@@ -29,15 +66,17 @@ filealloc(void)
+   struct file *f;
+ 
+   acquire(&ftable.lock);
+-  for(f = ftable.file; f < ftable.file + NFILE; f++){
++  /*for(f = ftable.file; f < ftable.file + NFILE; f++){
+     if(f->ref == 0){
+       f->ref = 1;
+       release(&ftable.lock);
+       return f;
+     }
+-  }
++  }*/
++  f = get_slabfile();
++  f->ref = 1;
+   release(&ftable.lock);
+-  return 0;
++  return f;
+ }
+ 
+ // Increment ref count for file f.
+@@ -67,6 +106,34 @@ fileclose(struct file *f)
+   }
+   ff = *f;
+   f->ref = 0;
++  struct filecache *p = cachehead;
++  for (; p; p = p->next) {
++    char *fa = (char *)f;
++    char *slaba = (char *)p->slabaddress;
++    /* find cache in which input file resides */
++    if (fa >= slaba && fa <= (slaba + sizeof(struct file) * CACHESIZE)) {
++        break;
++    }
++  }
++  int index = ((char *)f - (char *)p->slabaddress) / sizeof(struct file);
++  p->bitmap[index] = 0;
++  /* check if the cache is empty */
++  int i;
++  for (i = 0; i < CACHESIZE; i++)
++      if (p->bitmap[i] == 1)
++          break;
++  /* if empty, delete the cache */
++  if (i == CACHESIZE) {
++      cprintf("deleting empty cache\n");
++    struct filecache *q = p;
++    while (q && q->next != p)
++      q = q->next;
++    q->next = p->next;
++    kfree(p->slabaddress);
++    p->slabaddress = 0;
++    p->next = 0;
++  }
++
+   f->type = FD_NONE;
+   release(&ftable.lock);
+ 
+diff --git a/file.h b/file.h
+index 0990c82..f9c7f7c 100644
+--- a/file.h
++++ b/file.h
+@@ -8,6 +8,15 @@ struct file {
+   uint off;
+ };
+ 
++#define CACHESIZE (4096 / sizeof(struct file))
++
++struct filecache {
++    char bitmap[CACHESIZE];
++    char *slabaddress;
++    struct filecache *next;
++};
++
++struct filecache *cachehead;
+ 
+ // in-memory copy of an inode
+ struct inode {
+diff --git a/main.c b/main.c
+index 9924e64..bcf99f9 100644
+--- a/main.c
++++ b/main.c
+@@ -19,6 +19,7 @@ main(void)
+ {
+   kinit1(end, P2V(4*1024*1024)); // phys page allocator
+   kvmalloc();      // kernel page table
++  create_filecache(); // slab allocator initialisation
+   mpinit();        // detect other processors
+   lapicinit();     // interrupt controller
+   seginit();       // segment descriptors
+diff --git a/param.h b/param.h
+index a7e90ef..3f2a7c5 100644
+--- a/param.h
++++ b/param.h
+@@ -1,4 +1,4 @@
+-#define NPROC        64  // maximum number of processes
++#define NPROC        200  // maximum number of processes
+ #define KSTACKSIZE 4096  // size of per-process kernel stack
+ #define NCPU          8  // maximum number of CPUs
+ #define NOFILE       16  // open files per process

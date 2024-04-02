@@ -1,20 +1,19 @@
-Q. Slab allocator in xv6
-Implement a slob allocator in xv6 for allocating struct file.
+# OS Assignments in Xv6
 
+## Problem
+Implement a slab allocator in xv6 for allocating struct file.
 Rewrite all the relevant parts of the code.
-
 Submit a patch that is created with the master branch.
 
-Resourses: virtual-memory-3-thrashing-...-mem-mgmt.odp
+> Resources: virtual-memory-3-thrashing-...-mem-mgmt.odp
 
-slab allocator - technique of managing mem allocation for the kernel's own
-needs
+### Notes
+> slab allocator - technique of managing mem allocation for the kernel's own needs
+> buddy allocator - problems solved with slab allocator
 
-buddy allocator - problems solved with slab allocator
-
-file.h
-filealloc -> creates a struct file and gives a pointer to f
-ftable.file -> array of struct files
+- file.h
+- filealloc -> creates a struct file and gives a pointer to f
+- ftable.file -> array of struct files
 all struct files come from this ftable.file array
 - alocated statically
 - same approach for struct proc, inode etc.
@@ -22,15 +21,17 @@ all struct files come from this ftable.file array
 Slab Allocator:
 - supposed to change filealloc
 - memory should come from a slab, not a global array
-
 - allocate a page, the page is equally divided into same-sized objects
 - logic of checking ref count won't change: 0 : not in use, else in use
 - once one page is full, allocate another
-
 - linked list of pages - all serve as cache
+
+```
 Q. How to figure out cache is full or not?
 - bitmap or refcount loop - your choice
-
+```
+### Sample snippet
+```
 file *filecache;
 void create_file_cache() {
     k = kalloc();
@@ -52,11 +53,10 @@ fileaaloc()
     f = get_file_from_filecache();
     release(ftable.lock)
 }
-
 in main() {
     call after kvmalloc, create_file_cache();
 }
-
-figure out which function is the reverse of filealloc, and change it too
+```
+Figure out which function is the reverse of filealloc, and change it too.
 
 
